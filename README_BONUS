@@ -1,0 +1,35 @@
+## Profeanu Ioana, 333CA
+## Tema2 APD - README BONUS file
+-------------------------------------------------------------------------------
+* Scope and idea
+  * the scope of the bonus implementation is for the level 1 workers to read
+  previously assigned chunks of bytes from the input file, so that the reading
+  is parallelized and the threads are not dependent on each other;
+-------------------------------------------------------------------------------
+* Brief description
+  * in the main method, read the size of the orders input file;
+  * when the level 1 tasks are created, the worker threads will receive the
+  start and end (in bytes) of the position of where to start and stop reading;
+  the start and end were calculated with a formula that ensured the interval is
+  equal for each of the threads;
+  * firstly, the worker thread will skip a number of bytes equal to the start
+  value, so that it reaches the chunk of interest;
+  * the convention is that each worker thread will read line by line (except
+  for the first line) from the allocated interval, however because the lines
+  are not equal, the reading will not stop at the end of the interval and is
+  likely to stop a couple of bytes after; even if so, we ensure that this
+  happens only for the line that was partially in its designated chunk and
+  partially in the next designated chunk by always comparing the current file
+  position with the end of the chunk; if the position is equal or further from
+  the end, it means the thread has read all the designated lines, including the
+  one that is in two different chunks;
+  * as mentioned, the first line within the chunk will not be read by line but
+  rather by bytes until reaching the new line character, so that for the corner
+  case when the previous thread has stopped reading the last order right before
+  the new line character, we will not skip the following line (which would
+  happen if we were reading by line);
+  * in order to ensure the order is valid, we check if it contains "o_", as
+  this is the marking of the beginning of each order name; if it doesn't
+  contain it, it means the previous thread has already read that order (this
+  can happen only for the first order in the current thread's chunk);
+-------------------------------------------------------------------------------

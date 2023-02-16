@@ -1,0 +1,67 @@
+## Profeanu Ioana, 333CA
+# Tema2 APD - README file
+-------------------------------------------------------------------------------
+* Program Description
+  * Implemented a parallel processing program that parses a file of orders and
+  a file of products within the orders, using the replicated workers model and
+  a two level thread hierarchy;
+-------------------------------------------------------------------------------
+* Main Class and program start
+  * after reading the number of maximum threads per level, the input file
+  names and creating the output files, initialize two executor services which
+  each contain a number of threads equal to the maximum number of threads;
+  one executor service is for the order workers, the other one is for the
+  product workers; this way, we ensure that the maximum number of threads per
+  level doesn't exceed the maximum number of threads required per level;
+  * initialize the cyclic barrier for the order workers (to check if all order
+  workers have finished), and send a number of tasks equal to the number of
+  maximum threads, so that each thread will get one task; within the task,
+  include the chunk of the file that the thread must read (more about that in
+  the README_BONUS file);
+-------------------------------------------------------------------------------
+* Order Worker Class
+  * each order worker thread must use only a certain portion of the file and
+  read each order from it (an order and its number of products are stored
+  within a line);
+  * firstly, the thread will open the input file, skip the bytes until it
+  reaches the chunk of bytes allocated to it; we always keep track of where
+  within the file the reading is at;
+  * the first order read by the thread will be read byte by byte, until
+  reaching a newline character, because it could have already been read by the
+  thread that had the previous chunk (the number of chunks is equal, but the
+  lines are not - more on that in the bonus README);
+  * otherwise, the other orders are read line by line, until reaching the end
+  of its designated chunk;
+  * check if the order is a full order or not (check if it contains "o_");
+  then, split it and retrieve the order name and the number of products; if the
+  number of products is greater than 0, the thread will launch the tasks for
+  the level 2 threads, one task per product; to check if the tasks have
+  finished (so the order is ready), we use a semaphore initialized with the
+  number of products - 1; the worker thread tries to acquire it, and the level
+  2 product workers that parse the worker's task will release it; the worker
+  task will pass through only after all the level 2 tasks it summoned have
+  finished;
+  * use the synchronized method for writing at the end of the output file; the
+  method is synchronized to ensure that only one thread will write at a time;
+  * use the cyclic barrier to wait for all the level 1 threads to finnish;
+  decrease the tpe queue and the last thread will create a level 2 thread used
+  to shut the level 2 tpe, and then the last worker will shut down the level 1 
+  tpe as well;
+-------------------------------------------------------------------------------
+* Product Worker Class
+  * the product worker will receive from its parent the name of the order the
+  product is in and the index of the product (the product we are looking for is
+  productIndex-th within the order), so the thread will read from the products
+  input file and read it line by line, will check if it contains the name of
+  the order, and if so, will increase the current product index; basically, the
+  n-th line which contains the number of the order will contain the name of the
+  n-th product within the order;
+  * when the current product index is equal to the product index we are looking
+  for, it means we found the wanted line;
+  * write the output in the products output file, using a synchronized method
+  similar to the one used for the worker threads; after that, release the
+  semaphore shared with the parent worker thread, which works as previously
+  explained;
+  * when all the worker threads have finished, the last worker will send a new
+  product worker task which will shut down the product workers tpe;
+-------------------------------------------------------------------------------
